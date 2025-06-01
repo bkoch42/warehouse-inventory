@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Package, Scan, Download, Plus, Minus, Building2, Users, FileSpreadsheet, Camera, X, Edit } from 'lucide-react';
+import { Package, Scan, Plus, Minus, Building2, Users, FileSpreadsheet, Camera, X } from 'lucide-react';//Download, Edit
 
 const WarehouseInventoryApp = () => {
   const [currentUser, setCurrentUser] = useState('');
