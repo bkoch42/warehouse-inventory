@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Package, Scan, Plus, Minus, Building2, Users, FileSpreadsheet, Camera, X } from 'lucide-react';//Download, Edit
+import { Package, Scan, Plus, Minus, Building2, Users, FileSpreadsheet, Camera, X } from 'lucide-react';
 
 const WarehouseInventoryApp = () => {
   const [currentUser, setCurrentUser] = useState('');
@@ -28,62 +28,31 @@ const WarehouseInventoryApp = () => {
   const canvasRef = useRef(null);
   const streamRef = useRef(null);
 
-  // Load data from memory on component mount
+  // Initialize data on component mount
   useEffect(() => {
-    const savedData = window.warehouseData || {};
-    const savedCurrentUser = window.currentWarehouseUser || '';
-    const savedSelectedWarehouse = window.selectedWarehouse || '';
-
-    if (Object.keys(savedData).length > 0) {
-      setWarehouses(savedData);
-    } else {
-      // Initialize with sample data only if no saved data exists
-      const sampleData = {
-        'Main Warehouse': {
-          'QR001': {
-            itemNumber: 'SKU-001',
-            description: 'Red Vinyl Siding',
-            quantity: 50,
-            color: 'Red',
-            lastUpdated: new Date().toISOString(),
-            lastUpdatedBy: 'PM'
-          },
-          'QR002': {
-            itemNumber: 'SKU-002',
-            description: 'Clay Vinyl Siding',
-            quantity: 25,
-            color: 'Clay',
-            lastUpdated: new Date().toISOString(),
-            lastUpdatedBy: 'GM'
-          }
+    // Initialize with sample data for demonstration
+    const sampleData = {
+      'Main Warehouse': {
+        'QR001': {
+          itemNumber: 'SKU-001',
+          description: 'Red Vinyl Siding',
+          quantity: 50,
+          color: 'Red',
+          lastUpdated: new Date().toISOString(),
+          lastUpdatedBy: 'PM'
+        },
+        'QR002': {
+          itemNumber: 'SKU-002',
+          description: 'Clay Vinyl Siding',
+          quantity: 25,
+          color: 'Clay',
+          lastUpdated: new Date().toISOString(),
+          lastUpdatedBy: 'GM'
         }
-      };
-      setWarehouses(sampleData);
-      window.warehouseData = sampleData;
-    }
-
-    if (savedCurrentUser) {
-      setCurrentUser(savedCurrentUser);
-    }
-    if (savedSelectedWarehouse) {
-      setSelectedWarehouse(savedSelectedWarehouse);
-    }
+      }
+    };
+    setWarehouses(sampleData);
   }, []);
-
-  // Save data to memory whenever warehouses data changes
-  useEffect(() => {
-    window.warehouseData = warehouses;
-  }, [warehouses]);
-
-  // Save current user when it changes
-  useEffect(() => {
-    window.currentWarehouseUser = currentUser;
-  }, [currentUser]);
-
-  // Save selected warehouse when it changes
-  useEffect(() => {
-    window.selectedWarehouse = selectedWarehouse;
-  }, [selectedWarehouse]);
 
   const startCamera = async () => {
     try {
@@ -158,43 +127,63 @@ const WarehouseInventoryApp = () => {
   };
 
   const handleItemSubmit = (itemData) => {
-    const updatedWarehouses = { ...warehouses };
-    if (!updatedWarehouses[selectedWarehouse]) {
-      updatedWarehouses[selectedWarehouse] = {};
-    }
-    updatedWarehouses[selectedWarehouse][scannedCode] = {
-      ...itemData,
-      lastUpdated: new Date().toISOString(),
-      lastUpdatedBy: currentUser
-    };
-    setWarehouses(updatedWarehouses);
+    setWarehouses(prevWarehouses => {
+      const updatedWarehouses = { ...prevWarehouses };
+      if (!updatedWarehouses[selectedWarehouse]) {
+        updatedWarehouses[selectedWarehouse] = {};
+      }
+      updatedWarehouses[selectedWarehouse][scannedCode] = {
+        ...itemData,
+        lastUpdated: new Date().toISOString(),
+        lastUpdatedBy: currentUser
+      };
+      return updatedWarehouses;
+    });
+    
     setShowItemForm(false);
     setCurrentItem(null);
+    setScannedCode('');
   };
 
   const handleCheckInOut = (type, qty) => {
-    const updatedWarehouses = { ...warehouses };
-    const currentQty = currentItem.quantity;
-    const newQty = type === 'in' ? currentQty + parseInt(qty) : currentQty - parseInt(qty);
+    const qtyNumber = parseInt(qty);
+    if (isNaN(qtyNumber) || qtyNumber <= 0) {
+      alert('Please enter a valid quantity');
+      return;
+    }
 
-    updatedWarehouses[selectedWarehouse][scannedCode] = {
-      ...currentItem,
-      quantity: Math.max(0, newQty),
-      lastUpdated: new Date().toISOString(),
-      lastUpdatedBy: currentUser
-    };
+    setWarehouses(prevWarehouses => {
+      const updatedWarehouses = { ...prevWarehouses };
+      const currentQty = currentItem.quantity;
+      const newQty = type === 'in' ? currentQty + qtyNumber : currentQty - qtyNumber;
 
-    setWarehouses(updatedWarehouses);
+      updatedWarehouses[selectedWarehouse][scannedCode] = {
+        ...currentItem,
+        quantity: Math.max(0, newQty),
+        lastUpdated: new Date().toISOString(),
+        lastUpdatedBy: currentUser
+      };
+
+      return updatedWarehouses;
+    });
+
+    // Reset form state
     setShowCheckInOut(false);
     setCurrentItem(null);
     setQuantity('');
+    setTransactionType('');
+    setScannedCode('');
+    
+    // Show success message
+    alert(`Successfully ${type === 'in' ? 'checked in' : 'checked out'} ${qty} items!`);
   };
 
   const addWarehouse = () => {
     if (newWarehouseName && !warehouses[newWarehouseName]) {
-      const updatedWarehouses = { ...warehouses };
-      updatedWarehouses[newWarehouseName] = {};
-      setWarehouses(updatedWarehouses);
+      setWarehouses(prevWarehouses => ({
+        ...prevWarehouses,
+        [newWarehouseName]: {}
+      }));
       setNewWarehouseName('');
       setShowAddWarehouse(false);
     }
@@ -428,7 +417,7 @@ const WarehouseInventoryApp = () => {
                 onChange={(e) => setScannedCode(e.target.value)}
               />
               <button
-                onClick={() => handleQRScan(scannedCode)}
+                onClick={() => scannedCode && handleQRScan(scannedCode)}
                 disabled={!scannedCode}
                 className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 disabled:opacity-50"
               >
@@ -520,18 +509,22 @@ const WarehouseInventoryApp = () => {
               initialData={currentItem}
               availableColors={availableColors}
               onSubmit={handleItemSubmit}
-              onCancel={() => setShowItemForm(false)}
+              onCancel={() => {
+                setShowItemForm(false);
+                setCurrentItem(null);
+                setScannedCode('');
+              }}
             />
           </div>
         </div>
       )}
 
       {/* Check In/Out Modal */}
-      {showCheckInOut && (
+      {showCheckInOut && currentItem && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
           <div className="bg-white p-6 rounded-lg shadow-xl max-w-md w-full">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">{currentItem?.description}</h3>
-            <p className="text-gray-600 mb-4">Current quantity: {currentItem?.quantity}</p>
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">{currentItem.description}</h3>
+            <p className="text-gray-600 mb-4">Current quantity: <strong>{currentItem.quantity}</strong></p>
             
             <div className="flex gap-2 mb-4">
               <button
@@ -558,7 +551,8 @@ const WarehouseInventoryApp = () => {
               <div className="space-y-4">
                 <input
                   type="number"
-                  placeholder="Quantity"
+                  min="1"
+                  placeholder="Enter quantity"
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
                   value={quantity}
                   onChange={(e) => setQuantity(e.target.value)}
@@ -569,10 +563,16 @@ const WarehouseInventoryApp = () => {
                     disabled={!quantity || parseInt(quantity) <= 0}
                     className="flex-1 bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700 disabled:opacity-50"
                   >
-                    Confirm
+                    Confirm {transactionType === 'in' ? 'Check In' : 'Check Out'}
                   </button>
                   <button
-                    onClick={() => setShowCheckInOut(false)}
+                    onClick={() => {
+                      setShowCheckInOut(false);
+                      setCurrentItem(null);
+                      setQuantity('');
+                      setTransactionType('');
+                      setScannedCode('');
+                    }}
                     className="flex-1 bg-gray-300 text-gray-700 py-2 rounded-lg hover:bg-gray-400"
                   >
                     Cancel
@@ -598,13 +598,15 @@ const ItemForm = ({ initialData, onSubmit, onCancel, availableColors }) => {
   const handleSubmit = () => {
     if (formData.itemNumber && formData.description && formData.color) {
       onSubmit(formData);
+    } else {
+      alert('Please fill in all required fields (Item Number, Description, and Color)');
     }
   };
 
   return (
     <div className="space-y-4">
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">Item Number</label>
+        <label className="block text-sm font-medium text-gray-700 mb-1">Item Number *</label>
         <input
           type="text"
           required
@@ -615,7 +617,7 @@ const ItemForm = ({ initialData, onSubmit, onCancel, availableColors }) => {
       </div>
       
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
+        <label className="block text-sm font-medium text-gray-700 mb-1">Description *</label>
         <input
           type="text"
           required
@@ -637,7 +639,7 @@ const ItemForm = ({ initialData, onSubmit, onCancel, availableColors }) => {
       </div>
       
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">Color</label>
+        <label className="block text-sm font-medium text-gray-700 mb-1">Color *</label>
         <select
           required
           className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
